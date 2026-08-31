@@ -134,10 +134,7 @@ symlink_fix() {
 }
 
 keyboard_configuration_debconf_preseed() {
-   ## TODO: Think through the implications of version-bumping this, as this
-   ## may overwrite custom configuration made by the end user. Should we avoid
-   ## this?
-   if [ -f "/var/lib/whonix/do_once/${FUNCNAME[0]}_version_2" ]; then
+   if [ -f "/var/lib/whonix/do_once/${FUNCNAME[0]}_version_1" ]; then
       return 0
    fi
 
@@ -162,7 +159,7 @@ keyboard_configuration_debconf_preseed() {
    printf '%s\n' "keyboard-configuration	keyboard-configuration/modelcode	string	pc105" | debconf-set-selections
 
    mkdir --parents "/var/lib/whonix/do_once"
-   touch "/var/lib/whonix/do_once/${FUNCNAME[0]}_version_2"
+   touch "/var/lib/whonix/do_once/${FUNCNAME[0]}_version_1"
 }
 
 kexec_tools_preseed() {
