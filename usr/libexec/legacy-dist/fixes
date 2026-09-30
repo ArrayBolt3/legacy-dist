@@ -1,24 +1,18 @@
-#!/bin/bash
+#!/bin/bash -e
 
 ## Copyright (C) 2012 - 2025 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
 ## See the file COPYING for copying conditions.
 
-set -o errexit
-set -o nounset
-set -o pipefail
-set -o errtrace
-shopt -s inherit_errexit
-shopt -s shift_verbose
-export LC_ALL=C
+## errexit on the shebang (direct run only; ignored when sourced) so a failed
+## 'source' below aborts before main() sets the full strict block.
 
-if /usr/libexec/helper-scripts/debug-kicksecure-enabled; then
-  set -x
-fi
+## provides was_executed
+# shellcheck source=../../../../helper-scripts/usr/libexec/helper-scripts/check_runtime.bsh
+source "${HELPER_SCRIPTS_PATH:-}"/usr/libexec/helper-scripts/check_runtime.bsh
 
+## provides has
 # shellcheck source=../../../../helper-scripts/usr/libexec/helper-scripts/has.bsh
 source "${HELPER_SCRIPTS_PATH:-}"/usr/libexec/helper-scripts/has.bsh
-
-true "${0}: START"
 
 user_list=()
 user_list_already_loaded='false'
@@ -344,49 +338,70 @@ secure_boot_mok_cleanup() {
    fi
 }
 
-if ! [ "$(id -u)" = "0" ]; then
-   printf '%s\n' "${0} ERROR: must run as root!" >&2
-   exit 1
+main() {
+   set -o errexit
+   set -o nounset
+   set -o pipefail
+   set -o errtrace
+   shopt -s inherit_errexit
+   shopt -s shift_verbose
+   export LC_ALL=C
+
+   if /usr/libexec/helper-scripts/debug-kicksecure-enabled; then
+     set -x
+   fi
+
+   true "${0}: START"
+
+   if ! [ "$(id -u)" = "0" ]; then
+      printf '%s\n' "${0} ERROR: must run as root!" >&2
+      exit 1
+   fi
+
+   ## Fix for:
+   ## dpkg-maintscript-helper: error: couldn't identify the package
+   [ -n "${DPKG_MAINTSCRIPT_PACKAGE:-}" ] || DPKG_MAINTSCRIPT_PACKAGE="legacy-dist"
+   [ -n "${DPKG_MAINTSCRIPT_NAME:-}" ] || DPKG_MAINTSCRIPT_NAME="preinst"
+   export DPKG_MAINTSCRIPT_PACKAGE DPKG_MAINTSCRIPT_NAME
+   timeout --kill-after 60 60 /var/lib/dpkg/info/legacy-dist.preinst install || true
+
+   ## automate Tor permission fix
+   ## https://www.whonix.org/wiki/Tor#Permissions_Fix
+   ## https://forums.whonix.org/t/tor-error-your-tor-config-file-contains-at-least-one-error-var-lib-tor-tor-cannot-be-read-permission-denied/6200
+   ## cat -- /var/lib/dpkg/info/tor.postinst | grep -- chown
+   ## chown debian-tor:debian-tor /var/lib/tor
+   ## chown debian-tor:adm /var/log/tor
+   if [ -d "/var/lib/tor" ]; then
+      chown --recursive debian-tor:debian-tor /var/lib/tor || true
+   fi
+   if [ -d "/var/log/tor" ]; then
+      chown --recursive debian-tor:adm /var/log/tor || true
+   fi
+
+   command_not_found_sources_list_fix || true
+
+   command_not_found_permission_fix || true
+
+   bisq_desktop_directories_workaround || true
+
+   locales_fix || true
+
+   zsh_migration || true
+
+   qterminal_confirm_multiline_paste || true
+
+   qterminal_bookmarks_file || true
+
+   pcmanfm_qt_removable_media_automount || true
+
+   pcmanfm_qt_archiver || true
+
+   secure_boot_mok_cleanup || true
+
+   true "${0}: END"
+}
+
+## Only auto-run when executed, not when sourced (unit tests source it).
+if was_executed "${BASH_SOURCE[0]}"; then
+   main "$@"
 fi
-
-## Fix for:
-## dpkg-maintscript-helper: error: couldn't identify the package
-[ -n "${DPKG_MAINTSCRIPT_PACKAGE:-}" ] || DPKG_MAINTSCRIPT_PACKAGE="legacy-dist"
-[ -n "${DPKG_MAINTSCRIPT_NAME:-}" ] || DPKG_MAINTSCRIPT_NAME="preinst"
-export DPKG_MAINTSCRIPT_PACKAGE DPKG_MAINTSCRIPT_NAME
-timeout --kill-after 60 60 /var/lib/dpkg/info/legacy-dist.preinst install || true
-
-## automate Tor permission fix
-## https://www.whonix.org/wiki/Tor#Permissions_Fix
-## https://forums.whonix.org/t/tor-error-your-tor-config-file-contains-at-least-one-error-var-lib-tor-tor-cannot-be-read-permission-denied/6200
-## cat -- /var/lib/dpkg/info/tor.postinst | grep -- chown
-## chown debian-tor:debian-tor /var/lib/tor
-## chown debian-tor:adm /var/log/tor
-if [ -d "/var/lib/tor" ]; then
-   chown --recursive debian-tor:debian-tor /var/lib/tor || true
-fi
-if [ -d "/var/log/tor" ]; then
-   chown --recursive debian-tor:adm /var/log/tor || true
-fi
-
-command_not_found_sources_list_fix || true
-
-command_not_found_permission_fix || true
-
-bisq_desktop_directories_workaround || true
-
-locales_fix || true
-
-zsh_migration || true
-
-qterminal_confirm_multiline_paste || true
-
-qterminal_bookmarks_file || true
-
-pcmanfm_qt_removable_media_automount || true
-
-pcmanfm_qt_archiver || true
-
-secure_boot_mok_cleanup || true
-
-true "${0}: END"
