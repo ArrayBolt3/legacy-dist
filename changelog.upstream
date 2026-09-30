@@ -1,3 +1,91 @@
+commit cdecf2184ef4595a6b1c28dc5f9d548f32a558e2
+Merge: cae2a89 cca8a2f
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Wed Sep 30 07:18:54 2026 -0400
+
+    Merge remote-tracking branch 'org-ai-assisted/ai'
+
+commit cca8a2f982c7dbada8b4eceedc04fb1f6e9efd67
+Author: claude (dev771 3fc5ac27-06b8-414f-be70-c54249a02df6) <noreply@anthropic.com>
+Date:   Wed Sep 30 07:08:18 2026 -0400
+
+    Clarify fixes seam scope in comment
+
+    Seam covers the fix functions (the unit-test surface); main() is the
+    root-only orchestrator, its host ops intentionally unseamed.
+
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit cae2a89806bfba78965ee26d0fc9276e178793e5
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Wed Sep 30 11:01:03 2026 +0000
+
+    bumped changelog version
+
+commit 716363c9d3b218c9d746e306c4be8f8a76f8294c
+Merge: a343447 abd9a95
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Wed Sep 30 06:44:23 2026 -0400
+
+    Merge remote-tracking branch 'org-ai-assisted/ai'
+
+commit a343447b065aa013db7a5636378627a61c7126dc
+Merge: ba61662 be3a1ad
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Wed Sep 30 06:40:03 2026 -0400
+
+    Merge remote-tracking branch 'org-ai-assisted/ai'
+
+commit abd9a953e69031d874e86590790286b1f51c2da8
+Author: claude (dev771 3fc5ac27-06b8-414f-be70-c54249a02df6) <noreply@anthropic.com>
+Date:   Wed Sep 30 06:35:23 2026 -0400
+
+    Wire legacy-dist into dist-ai test CI
+
+    - Add the managed consumer-dist-ai-tests workflow wrapper.
+    - dm-consumer.yml: moreutils (sponge) for the fixes suite.
+
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit 89d4f096a55b4e94ed1c2c24ab77751cfbf67e94
+Author: claude (dev771 3fc5ac27-06b8-414f-be70-c54249a02df6) <noreply@anthropic.com>
+Date:   Wed Sep 30 06:35:20 2026 -0400
+
+    Harden fixes and make it unit-testable
+
+    - LEGACY_DIST_FIXES_ROOT + HELPER_SCRIPTS_PATH seams (empty in prod, paths
+      byte-identical) so a dist-ai test can redirect the filesystem surface.
+    - All home-folder ops (read, test, write) run as the target user via a
+      run_as_user choke point, never as root.
+    - End-of-options (--) on path-taking commands.
+
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit be3a1ad8ecdf6b244400d712ac554642d3b2df6b
+Author: claude (dev771 3fc5ac27-06b8-414f-be70-c54249a02df6) <noreply@anthropic.com>
+Date:   Wed Sep 30 05:41:38 2026 -0400
+
+    Make legacy-dist fixes source-able for unit tests
+
+    Wrap strict-mode + top-level logic in main(), gate auto-run behind
+    was_executed so a dist-ai test can source the file and call the pure
+    fix functions without inheriting strict-mode.
+
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit c16e3979a4b71fcb14736c9c87ba7faf509bf62e
+Merge: 94e7503 ba61662
+Author: assisted-by-ai <assisted-by-ai@users.noreply.github.com>
+Date:   Tue Sep 15 12:50:54 2026 -0400
+
+    Merge master into ai (remaster)
+
+commit ba61662904da77b4e2cc7930b953d6fe9d62d454
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Tue Sep 15 11:55:13 2026 +0000
+
+    bumped changelog version
+
 commit b2b2a1a5de11ccac59cbf430d67ff2e4acfa4502
 Merge: ea2854e 5fa2ef6
 Author: Patrick Schleizer <adrelanos@whonix.org>
