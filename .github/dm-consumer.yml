@@ -7,6 +7,10 @@
 ## workflow runtime.
 
 dist-ai-tests:
+  ## fixes_test.sh drives the real 'fixes' pipeline: sponge (moreutils) for the
+  ## qterminal config rewrite; str_replace + safe-rm come from the helper-scripts
+  ## checkout + baseline. sudo / locale-gen / qubesdb-read are mocked in-test.
+  apt-packages: "moreutils"
   ## legacy-dist sources helper-scripts' origins-parser, log_run_die.sh, has.bsh,
   ## shim-signed-mok-setup and package_installed_check.sh/.bsh by the
   ## '${HELPER_SCRIPTS_PATH:-}' path with a relative '# shellcheck source='

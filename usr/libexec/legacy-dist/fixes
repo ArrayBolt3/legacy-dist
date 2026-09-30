@@ -14,8 +14,23 @@ source "${HELPER_SCRIPTS_PATH:-}"/usr/libexec/helper-scripts/check_runtime.bsh
 # shellcheck source=../../../../helper-scripts/usr/libexec/helper-scripts/has.bsh
 source "${HELPER_SCRIPTS_PATH:-}"/usr/libexec/helper-scripts/has.bsh
 
+## Testability seams (empty/default in production, so paths resolve byte-identical):
+##  - LEGACY_DIST_FIXES_ROOT prefixes the host state paths this script reads and
+##    writes (/var, /etc, /home, /run, /usr/share).
+##  - HELPER_SCRIPTS_PATH prefixes both the sourced libs above and the executed
+##    helper-scripts below.
+## A unit test sources this file and points both at a tmpdir tree.
+
 user_list=()
 user_list_already_loaded='false'
+
+## Every operation on a user's home folder (read, test, or write) runs AS that
+## user, never as root. Single choke point so the sudo invocation cannot drift.
+run_as_user() {
+   local user_name="$1"
+   shift
+   sudo --non-interactive -u "${user_name}" -- "$@"
+}
 
 load_user_list() {
    local user_list_str
@@ -24,7 +39,7 @@ load_user_list() {
       return 0
    fi
 
-   if ! user_list_str="$(/usr/libexec/helper-scripts/get-user-list)"; then
+   if ! user_list_str="$("${HELPER_SCRIPTS_PATH:-}"/usr/libexec/helper-scripts/get-user-list)"; then
       printf "%s\n" "${0}: ERROR: Failed to get user list!" >&2
       return 1
    fi
@@ -34,39 +49,42 @@ load_user_list() {
 }
 
 command_not_found_sources_list_fix() {
-   if [ -f "/var/lib/whonix/do_once/${FUNCNAME[0]}_version_1" ]; then
+   local root="${LEGACY_DIST_FIXES_ROOT:-}"
+   if [ -f "${root}/var/lib/whonix/do_once/${FUNCNAME[0]}_version_1" ]; then
       return 0
    fi
 
-   if [ ! -e /etc/apt/sources.list ]; then
+   if [ ! -e "${root}/etc/apt/sources.list" ]; then
       ## https://forums.whonix.org/t/command-not-found-warningcould-not-open-file-etc-apt-sources-list/7903
-      touch /etc/apt/sources.list || true
+      touch -- "${root}/etc/apt/sources.list" || true
    fi
 
-   mkdir --parents "/var/lib/whonix/do_once"
-   touch "/var/lib/whonix/do_once/${FUNCNAME[0]}_version_1"
+   mkdir --parents -- "${root}/var/lib/whonix/do_once"
+   touch -- "${root}/var/lib/whonix/do_once/${FUNCNAME[0]}_version_1"
 }
 
 command_not_found_permission_fix() {
-   if [ -f "/var/lib/whonix/do_once/${FUNCNAME[0]}_version_1" ]; then
+   local root="${LEGACY_DIST_FIXES_ROOT:-}"
+   if [ -f "${root}/var/lib/whonix/do_once/${FUNCNAME[0]}_version_1" ]; then
       return 0
    fi
 
-   if [ -f /var/lib/command-not-found/commands.db ]; then
+   if [ -f "${root}/var/lib/command-not-found/commands.db" ]; then
       ## https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=917455
-      chmod o+r /var/lib/command-not-found/commands.db || true
+      chmod o+r -- "${root}/var/lib/command-not-found/commands.db" || true
    fi
 
-   mkdir --parents "/var/lib/whonix/do_once"
-   touch "/var/lib/whonix/do_once/${FUNCNAME[0]}_version_1"
+   mkdir --parents -- "${root}/var/lib/whonix/do_once"
+   touch -- "${root}/var/lib/whonix/do_once/${FUNCNAME[0]}_version_1"
 }
 
 bisq_desktop_directories_workaround() {
-   if [ ! -f /usr/share/whonix/marker ]; then
+   local root="${LEGACY_DIST_FIXES_ROOT:-}"
+   if [ ! -f "${root}/usr/share/whonix/marker" ]; then
       return 0
    fi
 
-   if [ -f "/var/lib/whonix/do_once/${FUNCNAME[0]}_version_1" ]; then
+   if [ -f "${root}/var/lib/whonix/do_once/${FUNCNAME[0]}_version_1" ]; then
       return 0
    fi
 
@@ -74,20 +92,20 @@ bisq_desktop_directories_workaround() {
 
    user_name="user"
    qubes_vm_name=""
-   if test -f "/home/${user_name}/.local/share/Bisq/btc_mainnet/tor/tor" ; then
+   if ! id -- "${user_name}" >&/dev/null ; then
       return 0
    fi
-   if [ ! -d "/home/${user_name}" ]; then
+   if run_as_user "${user_name}" test -f "${root}/home/${user_name}/.local/share/Bisq/btc_mainnet/tor/tor" ; then
       return 0
    fi
-   if ! id "${user_name}" >&/dev/null ; then
+   if ! run_as_user "${user_name}" test -d "${root}/home/${user_name}" ; then
       return 0
    fi
 
    if has qubesdb-read; then
       qubes_vm_name="$(qubesdb-read /name)" || return 0
    fi
-   if test -f /run/qubes/this-is-templatevm ; then
+   if test -f "${root}/run/qubes/this-is-templatevm" ; then
       return 0
    fi
    ## Avoid running in Qubes DVM Template.
@@ -96,15 +114,16 @@ bisq_desktop_directories_workaround() {
       return 0
    fi
 
-   sudo --non-interactive -u "${user_name}" mkdir -p "/home/${user_name}/.local/share/Bisq/btc_mainnet/tor" || true
-   sudo --non-interactive -u "${user_name}" touch "/home/${user_name}/.local/share/Bisq/btc_mainnet/tor/tor" || true
+   run_as_user "${user_name}" mkdir -p -- "${root}/home/${user_name}/.local/share/Bisq/btc_mainnet/tor" || true
+   run_as_user "${user_name}" touch -- "${root}/home/${user_name}/.local/share/Bisq/btc_mainnet/tor/tor" || true
 
-   mkdir --parents "/var/lib/whonix/do_once"
-   touch "/var/lib/whonix/do_once/${FUNCNAME[0]}_version_1"
+   mkdir --parents -- "${root}/var/lib/whonix/do_once"
+   touch -- "${root}/var/lib/whonix/do_once/${FUNCNAME[0]}_version_1"
 }
 
 locales_fix() {
-   if [ -f "/var/lib/whonix/do_once/${FUNCNAME[0]}_version_1" ]; then
+   local root="${LEGACY_DIST_FIXES_ROOT:-}"
+   if [ -f "${root}/var/lib/whonix/do_once/${FUNCNAME[0]}_version_1" ]; then
       return 0
    fi
 
@@ -116,7 +135,7 @@ locales_fix() {
 
    search="# en_US.UTF-8 UTF-8"
    replace="en_US.UTF-8 UTF-8"
-   file_name="/etc/locale.gen"
+   file_name="${root}/etc/locale.gen"
 
    if ! has locale-gen ; then
       ## If the locale-gen program is not available, do not attempt to fix this.
@@ -146,16 +165,17 @@ locales_fix() {
    ## LANG=C might not be used if already using LC_ALL=C.
    LC_ALL=C LANG=C locale-gen || true
 
-   mkdir --parents "/var/lib/whonix/do_once"
-   touch "/var/lib/whonix/do_once/${FUNCNAME[0]}_version_1"
+   mkdir --parents -- "${root}/var/lib/whonix/do_once"
+   touch -- "${root}/var/lib/whonix/do_once/${FUNCNAME[0]}_version_1"
 }
 
 zsh_migration() {
+   local root="${LEGACY_DIST_FIXES_ROOT:-}"
    local do_once_folder do_once_file
-   if test -f /run/qubes/this-is-appvm ; then
-      do_once_folder="/usr/local/var/lib/kicksecure/do_once"
+   if test -f "${root}/run/qubes/this-is-appvm" ; then
+      do_once_folder="${root}/usr/local/var/lib/kicksecure/do_once"
    else
-      do_once_folder="/var/lib/kicksecure/do_once"
+      do_once_folder="${root}/var/lib/kicksecure/do_once"
    fi
    do_once_file="${do_once_folder}/${FUNCNAME[0]}_version_1"
 
@@ -165,26 +185,27 @@ zsh_migration() {
 
    local user_name
    user_name="user"
+   if ! id -- "${user_name}" >&/dev/null ; then
+      return 0
+   fi
    ## https://github.com/Kicksecure/desktop-config-dist/blob/master/etc/skel/.zshrc
-   if test -f "/home/${user_name}/.zshrc" ; then
+   if run_as_user "${user_name}" test -f "${root}/home/${user_name}/.zshrc" ; then
       return 0
    fi
-   if [ ! -d "/home/${user_name}" ]; then
-      return 0
-   fi
-   if ! id "${user_name}" >&/dev/null ; then
+   if ! run_as_user "${user_name}" test -d "${root}/home/${user_name}" ; then
       return 0
    fi
 
-   sudo --non-interactive -u "${user_name}" touch "/home/${user_name}/.zshrc" || true
+   run_as_user "${user_name}" touch -- "${root}/home/${user_name}/.zshrc" || true
 
-   mkdir --parents "${do_once_folder}"
-   touch "${do_once_file}"
+   mkdir --parents -- "${do_once_folder}"
+   touch -- "${do_once_file}"
 }
 
 ## Enables multiline-paste configuration for all active users.
 qterminal_confirm_multiline_paste() {
-   if [ -f "/var/lib/whonix/do_once/${FUNCNAME[0]}_version_2" ]; then
+   local root="${LEGACY_DIST_FIXES_ROOT:-}"
+   if [ -f "${root}/var/lib/whonix/do_once/${FUNCNAME[0]}_version_2" ]; then
       return 0
    fi
 
@@ -192,27 +213,28 @@ qterminal_confirm_multiline_paste() {
 
    load_user_list || return 1
    for user_entry in "${user_list[@]}"; do
-      config_file="/home/${user_entry}/.config/qterminal.org/qterminal.ini"
-      if ! [ -f "${config_file}" ]; then
+      config_file="${root}/home/${user_entry}/.config/qterminal.org/qterminal.ini"
+      if ! run_as_user "${user_entry}" test -f "${config_file}" ; then
          continue
       fi
-      config_file_contents="$(cat -- "${config_file}")"
-      if grep '^ConfirmMultilinePaste=false$' <<< "${config_file_contents}" >/dev/null; then
+      config_file_contents="$(run_as_user "${user_entry}" cat -- "${config_file}")"
+      if run_as_user "${user_entry}" grep -- '^ConfirmMultilinePaste=false$' <<< "${config_file_contents}" >/dev/null; then
          # shellcheck disable=SC2001
-         config_file_contents="$(sed 's/^ConfirmMultilinePaste=false$/ConfirmMultilinePaste=true/' <<< "${config_file_contents}")"
-         printf '%s\n' "${config_file_contents}" | sponge -- "${config_file}"
+         config_file_contents="$(run_as_user "${user_entry}" sed -- 's/^ConfirmMultilinePaste=false$/ConfirmMultilinePaste=true/' <<< "${config_file_contents}")"
+         printf '%s\n' "${config_file_contents}" | run_as_user "${user_entry}" sponge -- "${config_file}"
       fi
    done
 
-   mkdir --parents "/var/lib/whonix/do_once"
-   touch "/var/lib/whonix/do_once/${FUNCNAME[0]}_version_2"
+   mkdir --parents -- "${root}/var/lib/whonix/do_once"
+   touch -- "${root}/var/lib/whonix/do_once/${FUNCNAME[0]}_version_2"
 }
 
 ## Fixes an issue where QTerminal attempts to save its bookmarks file in the
 ## home folder of a user account other than the account QTerminal is
 ## running as.
 qterminal_bookmarks_file() {
-   if [ -f "/var/lib/whonix/do_once/${FUNCNAME[0]}_version_2" ]; then
+   local root="${LEGACY_DIST_FIXES_ROOT:-}"
+   if [ -f "${root}/var/lib/whonix/do_once/${FUNCNAME[0]}_version_2" ]; then
       return 0
    fi
 
@@ -220,21 +242,22 @@ qterminal_bookmarks_file() {
 
    load_user_list || return 1
    for user_entry in "${user_list[@]}"; do
-      config_file="/home/${user_entry}/.config/qterminal.org/qterminal.ini"
-      if ! [ -f "${config_file}" ]; then
+      config_file="${root}/home/${user_entry}/.config/qterminal.org/qterminal.ini"
+      if ! run_as_user "${user_entry}" test -f "${config_file}" ; then
          continue
       fi
-      sed -i '/BookmarksFile=\/home\/user\/.config\/qterminal.org\/qterminal_bookmarks.xml/d' "${config_file}"
+      run_as_user "${user_entry}" sed -i -- '/BookmarksFile=\/home\/user\/.config\/qterminal.org\/qterminal_bookmarks.xml/d' "${config_file}"
    done
 
-   mkdir --parents "/var/lib/whonix/do_once"
-   touch "/var/lib/whonix/do_once/${FUNCNAME[0]}_version_2"
+   mkdir --parents -- "${root}/var/lib/whonix/do_once"
+   touch -- "${root}/var/lib/whonix/do_once/${FUNCNAME[0]}_version_2"
 }
 
 ## Fixes removable media automount being enabled by default in pcmanfm-qt
 ## (this is a security risk)
 pcmanfm_qt_removable_media_automount() {
-   if [ -f "/var/lib/whonix/do_once/${FUNCNAME[0]}_version_2" ]; then
+   local root="${LEGACY_DIST_FIXES_ROOT:-}"
+   if [ -f "${root}/var/lib/whonix/do_once/${FUNCNAME[0]}_version_2" ]; then
       return 0
    fi
    local user_entry config_file config_file_variant_list config_file_variant
@@ -246,23 +269,24 @@ pcmanfm_qt_removable_media_automount() {
          'default'
       )
       for config_file_variant in "${config_file_variant_list[@]}"; do
-         config_file="/home/${user_entry}/.config/pcmanfm-qt/${config_file_variant}/settings.conf";
-         if ! [ -f "${config_file}" ]; then
+         config_file="${root}/home/${user_entry}/.config/pcmanfm-qt/${config_file_variant}/settings.conf";
+         if ! run_as_user "${user_entry}" test -f "${config_file}" ; then
             continue
          fi
-         sed -i 's/^MountOnStartup=true$/MountOnStartup=false/' "${config_file}"
-         sed -i 's/^MountRemovable=true$/MountRemovable=false/' "${config_file}"
+         run_as_user "${user_entry}" sed -i -- 's/^MountOnStartup=true$/MountOnStartup=false/' "${config_file}"
+         run_as_user "${user_entry}" sed -i -- 's/^MountRemovable=true$/MountRemovable=false/' "${config_file}"
       done
    done
 
-   mkdir --parents "/var/lib/whonix/do_once"
-   touch "/var/lib/whonix/do_once/${FUNCNAME[0]}_version_2"
+   mkdir --parents -- "${root}/var/lib/whonix/do_once"
+   touch -- "${root}/var/lib/whonix/do_once/${FUNCNAME[0]}_version_2"
 }
 
 ## Fixes the default archiver being xarchiver (which isn't installed by
 ## default)
 pcmanfm_qt_archiver() {
-   if [ -f "/var/lib/whonix/do_once/${FUNCNAME[0]}_version_2" ]; then
+   local root="${LEGACY_DIST_FIXES_ROOT:-}"
+   if [ -f "${root}/var/lib/whonix/do_once/${FUNCNAME[0]}_version_2" ]; then
       return 0
    fi
 
@@ -275,16 +299,16 @@ pcmanfm_qt_archiver() {
          'default'
       )
       for config_file_variant in "${config_file_variant_list[@]}"; do
-         config_file="/home/${user_entry}/.config/pcmanfm-qt/${config_file_variant}/settings.conf";
-         if ! [ -f "${config_file}" ]; then
+         config_file="${root}/home/${user_entry}/.config/pcmanfm-qt/${config_file_variant}/settings.conf";
+         if ! run_as_user "${user_entry}" test -f "${config_file}" ; then
             continue
          fi
-         sed -i 's/^Archiver=xarchiver$/Archiver=lxqt-archiver/' "${config_file}"
+         run_as_user "${user_entry}" sed -i -- 's/^Archiver=xarchiver$/Archiver=lxqt-archiver/' "${config_file}"
       done
    done
 
-   mkdir --parents "/var/lib/whonix/do_once"
-   touch "/var/lib/whonix/do_once/${FUNCNAME[0]}_version_2"
+   mkdir --parents -- "${root}/var/lib/whonix/do_once"
+   touch -- "${root}/var/lib/whonix/do_once/${FUNCNAME[0]}_version_2"
 }
 
 ## Removes insecure MOK keys that were accidentally shipped in installation
@@ -323,7 +347,7 @@ secure_boot_mok_cleanup() {
    check_image_builtin_mok_retcode='0'
    ## Note that 'check-image-builtin-mok' handles the do_once mechanism
    ## itself.
-   /usr/libexec/helper-scripts/check-image-builtin-mok || check_image_builtin_mok_retcode="$?"
+   "${HELPER_SCRIPTS_PATH:-}"/usr/libexec/helper-scripts/check-image-builtin-mok || check_image_builtin_mok_retcode="$?"
    if [ "${check_image_builtin_mok_retcode}" = '1' ]; then
       ## Vulnerable key is present but may be safely wiped, delete them
 
@@ -372,10 +396,10 @@ main() {
    ## chown debian-tor:debian-tor /var/lib/tor
    ## chown debian-tor:adm /var/log/tor
    if [ -d "/var/lib/tor" ]; then
-      chown --recursive debian-tor:debian-tor /var/lib/tor || true
+      chown --recursive debian-tor:debian-tor -- /var/lib/tor || true
    fi
    if [ -d "/var/log/tor" ]; then
-      chown --recursive debian-tor:adm /var/log/tor || true
+      chown --recursive debian-tor:adm -- /var/log/tor || true
    fi
 
    command_not_found_sources_list_fix || true
