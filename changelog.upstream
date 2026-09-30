@@ -1,3 +1,27 @@
+commit cdecf2184ef4595a6b1c28dc5f9d548f32a558e2
+Merge: cae2a89 cca8a2f
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Wed Sep 30 07:18:54 2026 -0400
+
+    Merge remote-tracking branch 'org-ai-assisted/ai'
+
+commit cca8a2f982c7dbada8b4eceedc04fb1f6e9efd67
+Author: claude (dev771 3fc5ac27-06b8-414f-be70-c54249a02df6) <noreply@anthropic.com>
+Date:   Wed Sep 30 07:08:18 2026 -0400
+
+    Clarify fixes seam scope in comment
+
+    Seam covers the fix functions (the unit-test surface); main() is the
+    root-only orchestrator, its host ops intentionally unseamed.
+
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit cae2a89806bfba78965ee26d0fc9276e178793e5
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Wed Sep 30 11:01:03 2026 +0000
+
+    bumped changelog version
+
 commit 716363c9d3b218c9d746e306c4be8f8a76f8294c
 Merge: a343447 abd9a95
 Author: Patrick Schleizer <adrelanos@whonix.org>
