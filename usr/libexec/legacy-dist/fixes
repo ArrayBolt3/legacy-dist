@@ -15,11 +15,13 @@ source "${HELPER_SCRIPTS_PATH:-}"/usr/libexec/helper-scripts/check_runtime.bsh
 source "${HELPER_SCRIPTS_PATH:-}"/usr/libexec/helper-scripts/has.bsh
 
 ## Testability seams (empty/default in production, so paths resolve byte-identical):
-##  - LEGACY_DIST_FIXES_ROOT prefixes the host state paths this script reads and
-##    writes (/var, /etc, /home, /run, /usr/share).
-##  - HELPER_SCRIPTS_PATH prefixes both the sourced libs above and the executed
-##    helper-scripts below.
-## A unit test sources this file and points both at a tmpdir tree.
+##  - LEGACY_DIST_FIXES_ROOT prefixes the host state paths the fix FUNCTIONS read
+##    and write (/var, /etc, /home, /run, /usr/share). main() is the root-only
+##    orchestrator, NOT the unit-test surface, so its dpkg-preinst / tor-chown /
+##    debug-kicksecure host operations are intentionally unseamed.
+##  - HELPER_SCRIPTS_PATH prefixes the sourced libs above and the executed
+##    helper-scripts inside the functions.
+## A unit test sources this file and calls the functions with both pointed at a tmpdir.
 
 user_list=()
 user_list_already_loaded='false'
