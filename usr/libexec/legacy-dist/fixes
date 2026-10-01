@@ -359,7 +359,7 @@ main() {
    shopt -s shift_verbose
    export LC_ALL=C
 
-   if "${HELPER_SCRIPTS_PATH}/usr/libexec/helper-scripts/debug-kicksecure-enabled" ; then
+   if "${HELPER_SCRIPTS_PATH:-}/usr/libexec/helper-scripts/debug-kicksecure-enabled" ; then
      set -x
    fi
 
